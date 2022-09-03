@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "EREBUS-DRV025A-cache")(type "Legacy")(uri "${KIPRJMOD}/EREBUS-DRV025A-cache.lib")(options "")(descr ""))
+)
