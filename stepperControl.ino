@@ -7,21 +7,22 @@
 #include <avr/interrupt.h>
 #include <wiring.c>
 
-#define MAX_SUBSCRIBERS_TIMER2 4 //Small due to static memory usage... also divides clock.
+#define MAX_SUBSCRIBERS_TIMER2 4 //Small due to static memory usage... also divides clock timer2 ticks evenly between the max subscribers
 
 //Only one "thread" should access the stepper objects. 
 //If other "threads" or ISRs share a stepper object, they must make all accesses inside ATOMIC_BLOCK
 class stepper {
 	public: 
-	void absoluteMove(int newPosition); 		//invalid positions silently ignored...
+	void absoluteMove(int newPosition);			//invalid positions silently ignored...
 	void incrementalMove(int changePositionBy); //invalid positions silently ignored...
 	void setHome(void); //Sets the current position as home
-	void goHome(void); //Sets the target position as home
+	void goHome(void); //Sets the target position to home
 	void waitUntilStopped(void);//Busy waits until the stepper motor is idle.
 	bool isStopped(void);
 	void stop(void);
+	int getCurrentPosition(void);
 	
-	uint8_t speedDivisor = 1;
+	volatile uint8_t speedDivisor = 1;
 	volatile int maxPosition = INT_MAX;
 	volatile int minPosition = INT_MIN;
 	
@@ -31,8 +32,8 @@ class stepper {
 	void tick(void);
 	private:
 	stepper(); //No default constructor
-	volatile int currentPosition = 0; //To be accessed non-atomically by tick(), atomically elsewhere.
-	volatile int targetPosition = 0; //To be accessed non-atomically by tick(), atomically elsewhere.
+	volatile int currentPosition = 0;	//To be accessed non-atomically by tick(), atomically elsewhere.
+	volatile int targetPosition = 0;	//To be accessed non-atomically by tick(), atomically elsewhere.
 	uint8_t tickCount = 0;
 	volatile uint8_t *dirPort, dirMask;
 	volatile uint8_t *stepPort, stepMask;
@@ -110,6 +111,12 @@ bool stepper::isStopped(void) {
 void stepper::stop(void) {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		targetPosition = currentPosition;
+	}
+}
+
+int stepper::getCurrentPosition(void) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		return currentPosition;
 	}
 }
 
