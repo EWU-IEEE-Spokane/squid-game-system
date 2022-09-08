@@ -39,7 +39,7 @@ class stepper {
 	volatile uint8_t *stepPort;
 	uint8_t stepMask;
 	
-	volatile bool stepHigh = false;
+	bool stepHigh = false;
 };
 
 //Uses TIMER2 (8 bit) to provide timing calls to each stepper.
