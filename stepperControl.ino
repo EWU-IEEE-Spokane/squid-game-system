@@ -7,13 +7,10 @@
 #include <avr/interrupt.h>
 #include <wiring.c>
 
-//Only one "thread" should access the stepper objects. 
-//If other "threads" or ISRs share a stepper object, they must make all accesses inside ATOMIC_BLOCK
-
 void stepper_error(char *);
 
 class stepper {
-	public:
+	public: 
 	void absoluteMove(int newPosition);			//invalid positions silently ignored...
 	void incrementalMove(int changePositionBy); //invalid positions silently ignored...
 	void setHome(void); //Sets the current position as home
@@ -77,13 +74,17 @@ class Timer_{
 //Implementation - stepper
 void stepper::absoluteMove(int newPosition) {
 	if( (newPosition > maxPosition) || (newPosition < minPosition) ) return;
-	targetPosition = newPosition;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		targetPosition = newPosition;
+	}
 }
 
 void stepper::incrementalMove(int changePositionBy) {
 	long temp = targetPosition + changePositionBy;
 	if( (temp > maxPosition) || (temp < minPosition) ) return;
-	targetPosition = temp;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		targetPosition = temp;
+	}
 }
 
 void stepper::setHome(void) {
