@@ -7,20 +7,22 @@
 #include <avr/interrupt.h>
 #include <wiring.c>
 
-#define MAX_SUBSCRIBERS_TIMER2 4 //Small due to static memory usage... also divides clock timer2 ticks evenly between the max subscribers
-
 //Only one "thread" should access the stepper objects. 
 //If other "threads" or ISRs share a stepper object, they must make all accesses inside ATOMIC_BLOCK
+
+void stepper_error(char *);
+
 class stepper {
 	public: 
 	void absoluteMove(int newPosition);			//invalid positions silently ignored...
 	void incrementalMove(int changePositionBy); //invalid positions silently ignored...
 	void setHome(void); //Sets the current position as home
 	void goHome(void); //Sets the target position to home
-	void waitUntilStopped(void);//Busy waits until the stepper motor is idle.
-	bool isStopped(void);
 	void stop(void);
-	int getCurrentPosition(void);
+	
+	int getCurrentPosition(void) const;
+	void waitUntilStopped(void) const;//Busy waits until the stepper motor is idle.
+	bool isStopped(void) const;
 	
 	volatile uint8_t speedDivisor = 1;
 	volatile int maxPosition = INT_MAX;
@@ -35,36 +37,42 @@ class stepper {
 	volatile int currentPosition = 0;	//To be accessed non-atomically by tick(), atomically elsewhere.
 	volatile int targetPosition = 0;	//To be accessed non-atomically by tick(), atomically elsewhere.
 	uint8_t tickCount = 0;
-	volatile uint8_t *dirPort, dirMask;
-	volatile uint8_t *stepPort, stepMask;
+	volatile uint8_t *dirPort;
+	uint8_t dirMask;
+	volatile uint8_t *stepPort;
+	uint8_t stepMask;
 	
 	volatile bool stepHigh = false;
 };
 
 //Uses TIMER2 (8 bit) to provide timing calls to each stepper.
-class _Timer{
+class Timer_{
 	
 	public: 
-	//Argument is assumed to be a pointer to a class instance.
-	void subscribe(void(*wrapper)(void *), void* argument);
-	void unsubscribe(void *argument);
 	
-	_Timer();
+	//Argument is assumed to be a pointer to a class instance.
+	void subscribe(void(*wrapper)(stepper *), stepper* argument);
+	void unsubscribe(stepper *argument);
+	
+	Timer_();
 	
 	void tick(void);
+	void begin(void) const;
 	
-	void begin(void);
+	static const uint8_t maxSubscribers = 4;
 	
 	private:
 	
 	struct subscriber {
-		void(*ftn)(void *);
-		void *arg;
-	} subscribers[MAX_SUBSCRIBERS_TIMER2];
+		void(*ftn)(stepper *) = 0;
+		stepper *arg = 0;
+	} subscribers[maxSubscribers];
 	
 	uint8_t tickCount = 0;
 	
 } Timer2;
+
+//End of what would be the header
 
 //Implementation - stepper
 void stepper::absoluteMove(int newPosition) {
@@ -92,11 +100,23 @@ void stepper::goHome(void) {
 	}
 }
 
-void stepper::waitUntilStopped(void) {
+void stepper::stop(void) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		targetPosition = currentPosition;
+	}
+}
+
+int stepper::getCurrentPosition(void) const{
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		return currentPosition;
+	}
+}
+
+void stepper::waitUntilStopped(void) const{
 	while (!isStopped()){};
 }
 
-bool stepper::isStopped(void) {
+bool stepper::isStopped(void) const{
 	bool temp = false;
 	
 	if(currentPosition == targetPosition) {
@@ -106,18 +126,6 @@ bool stepper::isStopped(void) {
 		}
 	}
 	return temp;
-}
-
-void stepper::stop(void) {
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		targetPosition = currentPosition;
-	}
-}
-
-int stepper::getCurrentPosition(void) {
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		return currentPosition;
-	}
 }
 
 stepper::stepper(uint8_t stepPin, uint8_t dirPin){
@@ -131,9 +139,7 @@ stepper::stepper(uint8_t stepPin, uint8_t dirPin){
 	dirPort = portOutputRegister( digitalPinToPort(dirPin) );
 	
 	//The lambda function wraps a call to tick() for the correct instance of stepper.
-	Timer2.subscribe(
-		[](void *target){ ((stepper *)target)->tick(); }	,
-		this);
+	Timer2.subscribe([](stepper *target){ (target)->tick();},this);
 }
 
 stepper::~stepper() {
@@ -142,7 +148,6 @@ stepper::~stepper() {
 
 void stepper::tick() {
 	tickCount++;
-	uint8_t temp;
 	if( !(tickCount % speedDivisor) ) {
 		if(stepHigh) {
 			*stepPort = *stepPort & ~stepMask;
@@ -151,7 +156,7 @@ void stepper::tick() {
 			return;
 		}
 		
-		temp = *dirPort & ~dirMask;
+		uint8_t temp = *dirPort & ~dirMask;
 		if(currentPosition > targetPosition) {
 			*dirPort = temp | dirMask; 
 			*stepPort |= stepMask;
@@ -172,18 +177,27 @@ void stepper::tick() {
 
 //Implementation - Timer2
 
-void _Timer::subscribe(void(*wrapper)(void *), void* argument) {
+//"Why aren't you using std::function ?!"
+//std::function is not available on this platform, due to using exceptions 
+//		and some methods require dynamic memory allocation.
+//"Okay, but why not std::array for subscribers[] ?"
+//std::array also requires exceptions - not available on this platform.
+
+void Timer_::subscribe(void(*wrapper)(stepper *), stepper* argument) {
+	//Find an available slot in subscribers[]
 	int i = 0;
-	while(subscribers[i].ftn) i++;
-	if(i>=MAX_SUBSCRIBERS_TIMER2) { while(1);} //I mean...
+	while(subscribers[i].ftn && i<maxSubscribers) i++;
+	if(i==maxSubscribers) stepper_error("Exceeded maximum controllable stepper outputs.");
+	
+	//Place the new subscriber in that slot
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		subscribers[i].ftn = wrapper;
 		subscribers[i].arg = argument;
 	}
 }
 
-void _Timer::unsubscribe(void *argument) {
-	for(int i=0; i < MAX_SUBSCRIBERS_TIMER2; i++) {
+void Timer_::unsubscribe(stepper *argument) {
+	for(int i=0; i < maxSubscribers; i++) {
 		if(subscribers[i].arg = argument) {
 			subscribers[i].ftn = 0;
 			subscribers[i].arg = 0;
@@ -191,35 +205,42 @@ void _Timer::unsubscribe(void *argument) {
 	}
 }
 
-void _Timer::tick(void) {
+void Timer_::tick(void) {
 	//One subscriber each tick breaks up the time spent in the ISR over more ticks.
 	
-	if(tickCount == MAX_SUBSCRIBERS_TIMER2) tickCount = 0;
+	if(tickCount == maxSubscribers) tickCount = 0;
 	
 	if(subscribers[tickCount].ftn) (*subscribers[tickCount].ftn)(subscribers[tickCount].arg);
 	
 	digitalWrite(5, digitalRead(5));
+}
+
+void Timer_::begin(void) const{
+	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 16khz. Ultimately this results in each stepper::tick() being called at a rate of 4khz
 	
-	/* //If we wanted every subscriber called every tick.
-	for(int i=0; i < MAX_SUBSCRIBERS_TIMER2; i++) {
-		if(subscribers[i].ftn) (*subscribers[i].ftn)(subscribers[i].arg);
-	}
-	*/
+	//https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf 
+	//rev:		7810D-AVR-01/15
+	PRR &= ~0b01000000; // Sec 17.2, 9.10, 9.11.3  | Enable power to timer2
+	TCCR2A = 0b00000011; // Sec 17.11.1, 17.11.2 | WGM20, WGM21, WGM22 bits, between TCCR2A, TCCR2B, set waveform generation mode to
+	//Fast PWM Mode with OCRA as timer TOP value. Counts up to TOP, then triggers TIMER2_OVF_vect and restarts
+	//Other bits not used, as we're not using the PWM outputs
+	TCCR2B = 0b00001011; // Sec 17.11.2  | WGM22, Also divide clock by 32 (see table 17-9)
+	OCR2A = 124; // TOP Value
+	TIMSK2 = 0b00000001; // Sec 17.11.6 | Enables TIMER2_OVF_vect
 }
 
-void _Timer::begin(void) {
-	//You'll have to read the datasheet.
-	PRR &= ~0b01000000;
-	TCCR2A = 0b00000001;
-	TCCR2B = 0b00001011;
-	OCR2A = 125;
-	TIMSK2 = 0b00000001;
-}
-
-_Timer::_Timer(){
+Timer_::Timer_(){
 	begin();
 }
 
 ISR(TIMER2_OVF_vect){
 	Timer2.tick();
+}
+
+void stepper_error(char *errMsg) {
+	Serial.begin(9600);
+	while(1) {
+		Serial.println(errMsg);
+		Serial.flush();
+	}
 }
