@@ -212,8 +212,6 @@ void Timer_::tick(void) {
 	if(tickCount == maxSubscribers) tickCount = 0;
 	
 	if(subscribers[tickCount].ftn) (*subscribers[tickCount].ftn)(subscribers[tickCount].arg);
-	
-	digitalWrite(5, digitalRead(5));
 }
 
 void Timer_::begin(void) const{
