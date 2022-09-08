@@ -13,7 +13,7 @@
 void stepper_error(char *);
 
 class stepper {
-	public: 
+	public:
 	void absoluteMove(int newPosition);			//invalid positions silently ignored...
 	void incrementalMove(int changePositionBy); //invalid positions silently ignored...
 	void setHome(void); //Sets the current position as home
