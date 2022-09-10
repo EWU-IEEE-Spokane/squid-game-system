@@ -147,7 +147,22 @@ stepper::~stepper() {
 	Timer2.unsubscribe((void *)this);
 }
 
-void stepper::tick() {
+//Per DRV8825 datasheet: SLVSA73F – APRIL 2010 – REVISED JULY 2014
+//See sec 7.6: Timing requirements, Item 4 on figure 1 & associated table
+//Minimum time between changing DIR and changing STEP is 650ns. 
+//11 clock cycles here is ~687 ns
+/*	The the placement of the useful work of updating stepHigh and currentPosition between the
+	writes to dirPort and stepPort causes ~15 asm instructions and ~26 clock cycles
+	of delay. Compiler optomization could reduce this to ~15 clock cycles if addresses are all
+	known at compile time. The use of barriers the compiler can't reorder around  
+	for good measure should be good enough, but don't modify this section without 
+	examining the generated assembly and verifying that there is sufficient time inbetween 
+	* the st (store) instructions associated with the port writes. */
+//Also verified the times between writing dir & writing step with oscilloscope: ~1.62us
+	
+void stepper::tick(void) {
+#define REORDERING_BARRIER() asm volatile ("" ::: "memory")
+
 	tickCount++;
 	if( !(tickCount % speedDivisor) ) {
 		if(stepHigh) {
@@ -160,29 +175,33 @@ void stepper::tick() {
 		uint8_t temp = *dirPort & ~dirMask;
 		if(currentPosition > targetPosition) {
 			*dirPort = temp | dirMask; 
-			*stepPort |= stepMask;
+			REORDERING_BARRIER();
 			stepHigh = true;
 			currentPosition--;
+			REORDERING_BARRIER();
+			*stepPort |= stepMask;
+			return;
 		}
 		
 		if(currentPosition < targetPosition) {
 			*dirPort = temp;
-			*stepPort |= stepMask;
+			REORDERING_BARRIER();
 			stepHigh = true;
 			currentPosition++;
+			REORDERING_BARRIER();
+			*stepPort |= stepMask;
+			return;
 		}
 	tickCount = 0;
-	return;
 	}
+#undef REORDERING_BARRIER
 }
+
 
 //Implementation - Timer2
 
-//"Why aren't you using std::function ?!"
-//std::function is not available on this platform, due to using exceptions 
-//		and some methods require dynamic memory allocation.
-//"Okay, but why not std::array for subscribers[] ?"
-//std::array also requires exceptions - not available on this platform.
+//"Why aren't you using std::function and std::array?"
+//The STL is not available on the platform.
 
 void Timer_::subscribe(void(*wrapper)(stepper *), stepper* argument) {
 	//Find an available slot in subscribers[]
@@ -215,7 +234,8 @@ void Timer_::tick(void) {
 }
 
 void Timer_::begin(void) const{
-	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 16khz. Ultimately this results in each stepper::tick() being called at a rate of 4khz
+	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 16khz. 
+	//Ultimately this results in each stepper::tick() being called at a rate of 4khz
 	
 	//https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf 
 	//rev:		7810D-AVR-01/15
