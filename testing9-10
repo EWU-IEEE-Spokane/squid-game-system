@@ -1,0 +1,38 @@
+
+stepper myStepper(9, 8);
+
+void setup() {
+  Timer2.begin();
+  myStepper.speedDivisor = 2;
+  Serial.begin(115200);
+  // put your setup code here, to run once:
+  delay(1000);
+  Serial.write("play rules.wav\n");
+  Serial.flush();
+  delay(16000);
+  pinMode(10,OUTPUT);
+  digitalWrite(10,1);
+}
+
+void loop() {
+  //Serial.write("play /dev/urandom\n");
+  Serial.write("play green_light.wav\n");
+  Serial.flush();
+  myStepper.incrementalMove(100);
+  myStepper.waitUntilStopped();
+  delay(2000);
+  myStepper.incrementalMove(-100);
+  myStepper.waitUntilStopped();
+  Serial.write("play red_light_quick.wav\n");
+  Serial.flush();
+  for(int i=0; i<10; i++) {
+    digitalWrite(10,0);
+    delay(100);
+    digitalWrite(10,1);
+    delay(100);
+  }
+  delay(2000);
+  
+  // put your main code here, to run repeatedly:
+
+}
