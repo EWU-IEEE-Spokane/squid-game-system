@@ -7,7 +7,7 @@
 #include <avr/interrupt.h>
 #include <wiring.c>
 
-void stepper_error(char *);
+void stepper_error(const char *);
 
 class stepper {
 	public: 
@@ -111,6 +111,7 @@ int stepper::getCurrentPosition(void) const{
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		return currentPosition;
 	}
+	__builtin_unreachable(); //Compiler hint to quiet warning.
 }
 
 void stepper::waitUntilStopped(void) const{
@@ -144,7 +145,7 @@ stepper::stepper(uint8_t stepPin, uint8_t dirPin){
 }
 
 stepper::~stepper() {
-	Timer2.unsubscribe((void *)this);
+	Timer2.unsubscribe(this);
 }
 
 //Per DRV8825 datasheet: SLVSA73F – APRIL 2010 – REVISED JULY 2014
@@ -218,7 +219,7 @@ void Timer_::subscribe(void(*wrapper)(stepper *), stepper* argument) {
 
 void Timer_::unsubscribe(stepper *argument) {
 	for(int i=0; i < maxSubscribers; i++) {
-		if(subscribers[i].arg = argument) {
+		if(subscribers[i].arg == argument) {
 			subscribers[i].ftn = 0;
 			subscribers[i].arg = 0;
 		}
@@ -256,7 +257,7 @@ ISR(TIMER2_OVF_vect){
 	Timer2.tick();
 }
 
-void stepper_error(char *errMsg) {
+void stepper_error(const char *errMsg) {
 	Serial.begin(9600);
 	while(1) {
 		Serial.println(errMsg);
