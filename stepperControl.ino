@@ -228,6 +228,7 @@ void Timer_::unsubscribe(stepper *argument) {
 
 void Timer_::tick(void) {
 	//One subscriber each tick breaks up the time spent in the ISR over more ticks.
+	tickCount++;
 	
 	if(tickCount == maxSubscribers) tickCount = 0;
 	
@@ -244,7 +245,7 @@ void Timer_::begin(void) const{
 	TCCR2A = 0b00000011; // Sec 17.11.1, 17.11.2 | WGM20, WGM21, WGM22 bits, between TCCR2A, TCCR2B, set waveform generation mode to
 	//Fast PWM Mode with OCRA as timer TOP value. Counts up to TOP, then triggers TIMER2_OVF_vect and restarts
 	//Other bits not used, as we're not using the PWM outputs
-	TCCR2B = 0b00001011; // Sec 17.11.2  | WGM22, Also divide clock by 32 (see table 17-9)
+	TCCR2B = 0b00001010; // Sec 17.11.2  | WGM22, Also divide clock by 32 (see table 17-9)
 	OCR2A = 124; // TOP Value
 	TIMSK2 = 0b00000001; // Sec 17.11.6 | Enables TIMER2_OVF_vect
 }
