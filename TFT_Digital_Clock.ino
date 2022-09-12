@@ -2,48 +2,70 @@
   Written by Justin Liebert for IEEE EWU chapter Sept 8, 2022.
  ****************************************************/
 
-#include "SPI.h"
+#include<SPI.h>
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
 
 #define TFT_DC 9
 #define TFT_CS 10
+#define counting_pin 8
+#define out_of_time_pin 7 
 
+uint16_t time_seconds = 90;
+boolean counting = false;
+boolean out_of_time = false;
 uint16_t topOffset = 65;
-int time_seconds = 300;
 
-// Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
+const uint16_t t1_load = 0;
+const uint16_t t1_comp = 62500;
+
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
-// If using the breakout, change pins as desired
-//Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
-
-/*
-pinout      uno       LCD
-            13        CLK
-            12        MISO
-            11        MOSI
-            10        CS      
-            9         D/C
-*/
 
 void setup() {
+  pinMode(counting_pin, INPUT);
+  pinMode(out_of_time_pin, OUTPUT);
   tft.begin();
   tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
+  drawClock(10, topOffset, time_seconds, ILI9341_RED);
+
+  // Reset timer1 control register A
+  TCCR1A = 0;
+
+  // Set the prescaler to 256
+  TCCR1B |= (1 << CS12);
+  TCCR1B &= ~(1 << CS11);
+  TCCR1B &= ~(1 << CS10);
+
+  // Reset timer1 compare value
+  TCNT1 = t1_load;
+  OCR1A = t1_comp;
+
+  // Enable timer1 compare interrupt
+  TIMSK1 = (1 << OCIE1A);
+
+  // Enable global interrupts
+  sei();
 }
 
-
-void loop(void) {
-  
-  drawClock(10, topOffset, 0, ILI9341_BLACK);
-  drawClock(10, topOffset, time_seconds, ILI9341_RED);
-  if(time_seconds > 0){
-    time_seconds = time_seconds - 1;
-    }
-  if(time_seconds == 0){
-    time_seconds = 300;
-    }
+void loop() {
   delay(1000);
+}
+
+ISR(TIMER1_COMPA_vect){
+  TCNT1 = t1_load;
+  counting = digitalRead(counting_pin);
+  if(out_of_time == false){
+    if(time_seconds == 1){
+      out_of_time = true;
+    }
+    if(counting){
+      time_seconds--;
+      blankClock(10, topOffset, ILI9341_BLACK);
+    }
+    drawClock(10, topOffset, time_seconds, ILI9341_RED);
+  }
+  digitalWrite(out_of_time_pin, out_of_time);
 }
 
 void drawVerticalSegment(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color){
@@ -151,13 +173,22 @@ void drawDigit(uint16_t x, uint16_t y, uint16_t number, boolean decimal,  uint16
   }
 }
 
-void drawClock(uint16_t x, uint16_t y, int time_secondss, uint16_t color){
+void drawClock(uint16_t x, uint16_t y, int time_seconds, uint16_t color){
   int time_minutes = time_seconds/60;
   time_seconds = time_seconds - (time_minutes*60);
   drawDigit(x, y, time_minutes/10, false, color);                      // 4th digit
   drawDigit(x+80, y, time_minutes%10, false, color);                   // 3rd digit
   drawDigit(x+160, y, time_seconds/10, false, color);                  // 2nd digit
   drawDigit(x+240, y, time_seconds%10, false, color);                  // 1st digit
+  tft.fillCircle(x+149, 100, 5, color);                                // top middle dot
+  tft.fillCircle(x+149, 140, 5, color);                                // bottom middle dot
+}
+
+void blankClock(uint16_t x, uint16_t y,  uint16_t color){
+  drawDigit(x, y, 8, false, color);                                    // 4th digit
+  drawDigit(x+80, y, 8, false, color);                                 // 3rd digit
+  drawDigit(x+160, y, 8, false, color);                                // 2nd digit
+  drawDigit(x+240, y, 8, false, color);                                // 1st digit
   tft.fillCircle(x+149, 100, 5, color);                                // top middle dot
   tft.fillCircle(x+149, 140, 5, color);                                // bottom middle dot
 }
