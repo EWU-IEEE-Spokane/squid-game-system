@@ -1,9 +1,24 @@
 #include "stepperControl.h"
 #include <stdint.h>
 
+#define RED_LED 3 // check for the correct pin
+
 stepper stepper0(15, 14); // PC1, PC0
 stepper stepper1(17, 16);  // PC3, PC2
 stepper headStepper(6, 7); // PD6, PD7
+
+// timing variables 
+unsigned long start_millis = millis();
+unsigned long current_millis = millis();
+unsigned long period = 1000;
+
+uint16_t red_light_time = 0;
+uint16_t green_light_time = 0;
+uint16_t red_time_max = 5; // seconds
+uint16_t red_time_min = 1; // seconds
+uint16_t red_flash_time = 125; // milliseconds
+uint16_t green_time_max = 7; // seconds
+uint16_t green_time_min = 3; // seconds
 
 
 
@@ -81,8 +96,46 @@ void loop(){
 	delay(15000);
 	
 	while (player0.playing || player1.playing){
-		//green light
+		// begin green light
+		// play green light sound
+  		// rotate head 180 degrees
+  		green_light_time = random(green_time_min, green_time_max+1);
+  		period = green_light_time*1000;
+  		current_millis = millis();
+  		while (current_millis - start_millis <= period){
+  			current_millis = millis();
+			// read button state and check players
+			// increment players who are pressing their buttons
+  		}
+  		start_millis = current_millis;
+		// end green light
 		
-		//red light
-	}
+		// begin red light
+		// play red light sound
+  		// rotate head 180 degrees
+ 	 	period = red_flash_time;
+  		start_millis = current_millis;
+  		current_millis = millis();  
+  		for(int x = 0; x < 11; x++){
+  			while (current_millis - start_millis <= period){
+  		  		current_millis = millis();
+  			}
+  			start_millis = current_millis;
+  			digitalWrite(RED_LED, !digitalRead(RED_LED));
+  		}
+  
+  		// RED LIGHT SOLID
+  		red_light_time = random(red_time_min, red_time_max+1);
+  		period = red_light_time*1000;
+  		current_millis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
+  		while (current_millis - start_millis <= period){
+  			//test whether the period has elapsed
+			current_millis = millis();
+			// read button state and check players
+  			digitalWrite(RED_LED, HIGH);
+  		}
+  		start_millis = current_millis;  //IMPORTANT to save the start time of the current count state.
+  		digitalWrite(RED_LED, LOW);
+		// end red light
+	}	
 }
