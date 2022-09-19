@@ -8,11 +8,10 @@ stepper stepper1(17, 16);  // PC3, PC2
 stepper headStepper(6, 7); // PD6, PD7
 
 // timing variables 
-unsigned long start_millis = millis();
-unsigned long current_millis = millis();
-unsigned long period = 1000;
+unsigned long start_millis;
+unsigned long current_millis;
+unsigned long period;
 
-uint16_t red_light_time = 0;
 uint16_t green_light_time = 0;
 uint16_t red_time_max = 5; // seconds
 uint16_t red_time_min = 1; // seconds
@@ -77,6 +76,8 @@ class player_ {
 player_ player0(2); //PD2
 player_ player1(3); //PD3
 
+counter_ counter0();
+
 
 void setup(){
 	Timer2.begin();
@@ -86,6 +87,9 @@ void setup(){
 void loop(){ 
 	player0.playing = true; 
 	player1.playing = true;
+	
+	counter0.reset();
+	delay(3000);
 	
 	//wait for start
 	while(!player1.state() || !player0.state()){};
@@ -99,43 +103,41 @@ void loop(){
 		// begin green light
 		// play green light sound
   		// rotate head 180 degrees
-  		green_light_time = random(green_time_min, green_time_max+1);
-  		period = green_light_time*1000;
-  		current_millis = millis();
+		setMillis(random(green_time_min, green_time_max+1)*1000);
   		while (current_millis - start_millis <= period){
   			current_millis = millis();
 			// read button state and check players
 			// increment players who are pressing their buttons
   		}
-  		start_millis = current_millis;
 		// end green light
 		
 		// begin red light
 		// play red light sound
   		// rotate head 180 degrees
- 	 	period = red_flash_time;
-  		start_millis = current_millis;
-  		current_millis = millis();  
+  		setMillis(red_flash_time);  
   		for(int x = 0; x < 11; x++){
   			while (current_millis - start_millis <= period){
   		  		current_millis = millis();
   			}
-  			start_millis = current_millis;
   			digitalWrite(RED_LED, !digitalRead(RED_LED));
-  		}
+  			setMillis();
+		}
   
   		// RED LIGHT SOLID
-  		red_light_time = random(red_time_min, red_time_max+1);
-  		period = red_light_time*1000;
-  		current_millis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
+		setMillis(random(red_time_min, red_time_max+1)*1000);  
   		while (current_millis - start_millis <= period){
   			//test whether the period has elapsed
 			current_millis = millis();
 			// read button state and check players
   			digitalWrite(RED_LED, HIGH);
   		}
-  		start_millis = current_millis;  //IMPORTANT to save the start time of the current count state.
   		digitalWrite(RED_LED, LOW);
 		// end red light
 	}	
+}
+
+void setMillis(uint16_t period){
+	start_millis = millis(); //IMPORTANT to save the start time of the current count state.
+	current_millis = millis(); //get the current "time" (actually the number of milliseconds since the program started)
+	period = period;
 }
