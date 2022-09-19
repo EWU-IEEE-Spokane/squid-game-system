@@ -12,7 +12,6 @@ unsigned long start_millis;
 unsigned long current_millis;
 unsigned long period;
 
-uint16_t green_light_time = 0;
 uint16_t red_time_max = 5; // seconds
 uint16_t red_time_min = 1; // seconds
 uint16_t red_flash_time = 125; // milliseconds
@@ -136,8 +135,8 @@ void loop(){
 	}	
 }
 
-void setMillis(uint16_t period){
+void setMillis(uint16_t millis_period){
 	start_millis = millis(); //IMPORTANT to save the start time of the current count state.
 	current_millis = millis(); //get the current "time" (actually the number of milliseconds since the program started)
-	period = period;
+	period = millis_period;
 }
