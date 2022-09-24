@@ -40,7 +40,6 @@ void setup() {
   tft.begin();
   tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
-  drawClock(10, topOffset, time_seconds, 5, ILI9341_RED);
 
   // Reset timer1 control register A
   TCCR1A = 0;
@@ -74,9 +73,9 @@ ISR(TIMER1_COMPA_vect){
     }
     if(counting){
       time_seconds--;
-      blankClock(10, topOffset, 5, ILI9341_BLACK);
+      blankClock(10, topOffset, 3, ILI9341_BLACK);
     }
-    drawClock(10, topOffset, time_seconds, 5, ILI9341_RED);
+    drawClock(10, topOffset, time_seconds, 3, ILI9341_RED);
   }
   digitalWrite(out_of_time_pin, out_of_time);
 }
@@ -262,8 +261,8 @@ void drawClock(uint16_t x, uint16_t y, int time_seconds, uint8_t scale, uint16_t
   drawDigit(x+2*offsets[0], y, time_seconds/10, scale, false, color);                     // 2nd digit
   drawDigit(x+3*offsets[0], y, time_seconds%10, scale, false, color);                     // 1st digit
 
-  tft.fillCircle(x+offsets[1], offsets[2], colon_radius, color);                          // top middle dot
-  tft.fillCircle(x+offsets[1], offsets[3], colon_radius, color);                          // bottom middle dot
+  tft.fillCircle(x+offsets[1], y+offsets[2], colon_radius, color);                          // top middle dot
+  tft.fillCircle(x+offsets[1], y+offsets[3], colon_radius, color);                          // bottom middle dot
 }
 
 void blankClock(uint16_t x, uint16_t y,  uint8_t scale, uint16_t color){
