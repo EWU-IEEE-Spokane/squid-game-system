@@ -11,7 +11,7 @@
 #define counting_pin 8
 #define out_of_time_pin 7 
 
-uint16_t time_seconds = 15;
+uint16_t time_seconds = 90;
 boolean counting = false;
 boolean out_of_time = false;
 uint16_t topOffset = 65;
@@ -73,9 +73,9 @@ ISR(TIMER1_COMPA_vect){
     }
     if(counting){
       time_seconds--;
-      blankClock(10, topOffset, 3, ILI9341_BLACK);
+      blankClock(10, topOffset, 5, ILI9341_BLACK);
     }
-    drawClock(10, topOffset, time_seconds, 3, ILI9341_RED);
+    drawClock(10, topOffset, time_seconds, 5, ILI9341_RED);
   }
   digitalWrite(out_of_time_pin, out_of_time);
 }
