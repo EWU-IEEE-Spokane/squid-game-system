@@ -7,6 +7,8 @@ stepper stepper0(15, 14); // PC1, PC0
 stepper stepper1(17, 16);  // PC3, PC2
 stepper headStepper(6, 7); // PD6, PD7
 
+const unit16_t player_step = 10;
+
 // timing variables 
 unsigned long start_millis;
 unsigned long current_millis;
@@ -110,13 +112,18 @@ void loop(){
 		setMillis(random(green_time_min, green_time_max+1)*1000);
   		while (current_millis - start_millis <= period){
   			current_millis = millis();
+			// checking if the players ran out of time
+			if (counter0.getStatus();){
+				player0.playing = false;
+				player1.playing = false;
+			}
 			// read button state and move players
 			if(player0.state() && player0.playing){
-				stepper0.incrementalMove(1);  // move player forward need to dial in the right value 
+				stepper0.incrementalMove(player_step);  // move player forward need to dial in the right value 
   				stepper0.waitUntilStopped();
 			}
 			if(player1.state() && player1.playing){
-				stepper1.incrementalMove(1);  // move player forward need to dial in the right value 
+				stepper1.incrementalMove(player_step);  // move player forward need to dial in the right value 
   				stepper1.waitUntilStopped();
 			}
   		}
@@ -131,6 +138,10 @@ void loop(){
   		for(int x = 0; x < 11; x++){
   			while (current_millis - start_millis <= period){
   		  		current_millis = millis();
+				if (counter0.getStatus();){
+					player0.playing = false;
+					player1.playing = false;
+				}
   			}
   			digitalWrite(RED_LED, !digitalRead(RED_LED));
   			setMillis();
@@ -141,6 +152,10 @@ void loop(){
   		while (current_millis - start_millis <= period){
   			//test whether the period has elapsed
 			current_millis = millis();
+			if (counter0.getStatus();){
+				player0.playing = false;
+				player1.playing = false;
+			}
 			// read button state and check players
 			if(player0.state() && player0.playing){
 				player0.playing = false;
