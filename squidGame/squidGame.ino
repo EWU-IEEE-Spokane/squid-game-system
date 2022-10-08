@@ -77,9 +77,6 @@ class player_ {
 player_ player0(2); //PD2
 player_ player1(3); //PD3
 
-counter_ counter0();
-
-
 void setup(){
 	Timer2.begin();
 	Serial.begin(115200);
@@ -92,7 +89,7 @@ void loop(){
 	player0.playing = true; 
 	player1.playing = true;
 	
-	counter0.reset();
+	counter.reset();
 	delay(3000);
 	
 	//wait for start
@@ -113,7 +110,7 @@ void loop(){
 		while (current_millis - start_millis <= period){
 			current_millis = millis();
 			// checking if the players ran out of time
-			if (counter0.getStatus();){
+			if (counter.getStatus()){
 				player0.playing = false;
 				player1.playing = false;
 			}
@@ -138,7 +135,7 @@ void loop(){
 		for(int x = 0; x < 11; x++){
 			while (current_millis - start_millis <= period){
 		  		current_millis = millis();
-				if (counter0.getStatus();){
+				if (counter.getStatus();){
 					player0.playing = false;
 					player1.playing = false;
 				}
@@ -152,7 +149,7 @@ void loop(){
 		while (current_millis - start_millis <= period){
 			//test whether the period has elapsed
 			current_millis = millis();
-			if (counter0.getStatus()){
+			if (counter.getStatus()){
 				player0.playing = false;
 				player1.playing = false;
 			}
