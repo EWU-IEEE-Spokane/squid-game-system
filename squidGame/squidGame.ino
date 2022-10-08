@@ -14,11 +14,11 @@ unsigned long start_millis;
 unsigned long current_millis;
 unsigned long period;
 
-const uint16_t red_time_max = 5; // seconds
-const uint16_t red_time_min = 1; // seconds
+const uint16_t red_time_max = 5000; // milliseconds
+const uint16_t red_time_min = 1000; // milliseconds
 const uint16_t red_flash_time = 125; // milliseconds
-const uint16_t green_time_max = 7; // seconds
-const uint16_t green_time_min = 3; // seconds
+const uint16_t green_time_max = 7000; // miliseconds
+const uint16_t green_time_min = 3000; // milliseconds
 
 
 
@@ -80,9 +80,11 @@ player_ player1(3); //PD3
 void setup(){
 	Timer2.begin();
 	Serial.begin(115200);
-	stepper0.speedDivisor = 2;
-	stepper1.speedDivisor = 2;
-	headStepper.speedDivisor = 2;
+	stepper0.speedDivisor = 3;
+	stepper1.speedDivisor = 3;
+	headStepper.speedDivisor = 3;
+	
+	digitalWrite(RED_LED, HIGH);
 }
 
 void loop(){ 
@@ -101,74 +103,57 @@ void loop(){
 	delay(15000);
 	
 	while (player0.playing || player1.playing){
-		// begin green light
-		Serial.write("play green_light.wav\n");  // play green light sound
-		Serial.flush();
-		headStepper.incrementalMove(100);  // rotate head 180 degrees
-		headStepper.waitUntilStopped();
-		setMillis(random(green_time_min, green_time_max+1)*1000);
-		while (current_millis - start_millis <= period){
-			current_millis = millis();
-			// checking if the players ran out of time
-			if (counter.getStatus()){
-				player0.playing = false;
-				player1.playing = false;
-			}
-			// read button state and move players
-			if(player0.state() && player0.playing){
-				stepper0.incrementalMove(player_step);  // move player forward need to dial in the right value 
-				stepper0.waitUntilStopped();
-			}
-			if(player1.state() && player1.playing){
-				stepper1.incrementalMove(player_step);  // move player forward need to dial in the right value 
-				stepper1.waitUntilStopped();
-			}
-		}
-		// end green light
-		
-		// begin red light
-		Serial.write("play red_light_quick.wav\n");  // play red light sound
-		Serial.flush();
-		headStepper.incrementalMove(-100);  // rotate head -180 degrees
-		headStepper.waitUntilStopped();
-		setMillis(red_flash_time);  
-		for(int x = 0; x < 11; x++){
-			while (current_millis - start_millis <= period){
-		  		current_millis = millis();
-				if (counter.getStatus();){
+		{ //GREEN LIGHT
+			Serial.write("play green_light.wav\n");  // play green light sound
+			Serial.flush();
+			headStepper.incrementalMove(100);  // rotate head 180 degrees
+			headStepper.waitUntilStopped();
+			unsigned long endTime = millis() + random(green_time_min, green_time_max);
+			while (millis() < endTime){
+
+				// checking if the players ran out of time
+				if (counter.getStatus()){
 					player0.playing = false;
 					player1.playing = false;
 				}
+				// read button state and move players
+				if(player0.hasChanged() && player0.playing){
+					stepper0.incrementalMove(player_step);  // move player forward need to dial in the right value 
+					stepper0.waitUntilStopped();
+				}
+				if(player1.hasChanged() && player1.playing){
+					stepper1.incrementalMove(player_step);  // move player forward need to dial in the right value 
+					stepper1.waitUntilStopped();
+				}
 			}
-			digitalWrite(RED_LED, !digitalRead(RED_LED));
-			setMillis();
 		}
-  
-		// RED LIGHT SOLID
-		setMillis(random(red_time_min, red_time_max+1)*1000);  
-		while (current_millis - start_millis <= period){
-			//test whether the period has elapsed
-			current_millis = millis();
-			if (counter.getStatus()){
-				player0.playing = false;
-				player1.playing = false;
+		
+		{ // RED LIGHT
+			Serial.write("play red_light_quick.wav\n");  // play red light sound
+			Serial.flush();
+			
+			headStepper.incrementalMove(-100);  // rotate head -180 degrees
+			for(int i = 0; i < 10; i++){
+				delay(50);
+				digitalWrite(RED_LED, !digitalRead(RED_LED));
 			}
-			// read button state and check players
-			if(player0.state() && player0.playing){
-				player0.playing = false;
+			headStepper.waitUntilStopped();
+			
+			// RED LIGHT SOLID
+			unsigned long endTime = millis() + random(green_time_min, green_time_max);
+			while (millis() < endTime){
+				if (counter.getStatus()){
+					player0.playing = false;
+					player1.playing = false;
+				}
+				// read button state and check players
+				if(player0.state() && player0.playing){
+					player0.playing = false;
+				}
+				if(player1.state() && player1.playing){
+					player1.playing = false;
+				}
 			}
-			if(player1.state() && player1.playing){
-				player1.playing = false;
-			}
-			digitalWrite(RED_LED, HIGH);
 		}
-		digitalWrite(RED_LED, LOW);
-		// end red light
 	}
-}
-
-void setMillis(uint16_t millis_period){
-	start_millis = millis(); //IMPORTANT to save the start time of the current count state.
-	current_millis = millis(); //get the current "time" (actually the number of milliseconds since the program started)
-	period = millis_period;
 }
