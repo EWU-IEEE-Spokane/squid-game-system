@@ -56,7 +56,7 @@ class Timer_{
 	void tick(void);
 	void begin(void) const;
 	
-	static const uint8_t maxSubscribers = 4;
+	static const uint8_t maxSubscribers = 2;
 	
 	private:
 	
@@ -237,7 +237,7 @@ void Timer_::tick(void) {
 
 void Timer_::begin(void) const{
 	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 128khz. 
-	//Ultimately this results in each stepper::tick() being called at a rate of 32khz
+	//Ultimately this results in each stepper::tick() being called at a rate of 64khz with maxSubscribers=2
 	
 	//https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf 
 	//rev:		7810D-AVR-01/15
