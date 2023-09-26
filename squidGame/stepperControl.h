@@ -236,8 +236,8 @@ void Timer_::tick(void) {
 }
 
 void Timer_::begin(void) const{
-	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 64khz. 
-	//Ultimately this results in each stepper::tick() being called at a rate of 16khz
+	//Configures timer2 to trigger the TIMER2_OVF_vect ISR at a rate of ~exactly 128khz. 
+	//Ultimately this results in each stepper::tick() being called at a rate of 32khz
 	
 	//https://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf 
 	//rev:		7810D-AVR-01/15
@@ -246,7 +246,7 @@ void Timer_::begin(void) const{
 	//Fast PWM Mode with OCRA as timer TOP value. Counts up to TOP, then triggers TIMER2_OVF_vect and restarts
 	//Other bits not used, as we're not using the PWM outputs
 	TCCR2B = 0b00001010; // Sec 17.11.2  | WGM22, Also divide clock by 32 (see table 17-9)
-	OCR2A = 31; // TOP Value
+	OCR2A = 15; // TOP Value
 	TIMSK2 = 0b00000001; // Sec 17.11.6 | Enables TIMER2_OVF_vect
 }
 
